@@ -61,7 +61,7 @@ module Pundit
     # @raise [NotAuthorizedError] if the given query method returned false
     # @return [Object] Always returns the passed object record
     def authorize(user, record, query)
-      policy = policy!(user, record)
+      policy = policy!(user, record, self.class.parent)
 
       unless policy.public_send(query)
         raise NotAuthorizedError, query: query, record: record, policy: policy
