@@ -8,12 +8,13 @@ module Pundit
   #   finder.scope #=> UserPolicy::Scope
   #
   class PolicyFinder
-    attr_reader :object
+    attr_reader :object, :namespace
 
     # @param object [any] the object to find policy and scope classes for
     #
-    def initialize(object)
-      @object = object
+    def initialize(object, namespace = Object)
+      @object    = object
+      @namespace = namespace
     end
 
     # @return [nil, Scope{#resolve}] scope class which can resolve to a scope
@@ -37,7 +38,7 @@ module Pundit
     #
     def policy
       klass = find
-      klass = klass.constantize if klass.is_a?(String)
+      klass = namespace.const_get(klass) if klass.is_a?(String)
       klass
     rescue NameError
       nil
