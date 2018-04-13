@@ -1,67 +1,38 @@
 module Pundit
-  # Finds policy and scope classes for given object.
-  # @api public
-  # @example
-  #   user = User.find(params[:id])
-  #   finder = PolicyFinder.new(user)
-  #   finder.policy #=> UserPolicy
-  #   finder.scope #=> UserPolicy::Scope
-  #
   class PolicyFinder
     attr_reader :object, :namespace
 
-    # @param object [any] the object to find policy and scope classes for
-    #
     def initialize(object, namespace = Object)
       @object    = object
       @namespace = namespace
     end
 
-    # @return [nil, Scope{#resolve}] scope class which can resolve to a scope
-    # @see https://github.com/elabs/pundit#scopes
-    # @example
-    #   scope = finder.scope #=> UserPolicy::Scope
-    #   scope.resolve #=> <#ActiveRecord::Relation ...>
-    #
+    def policy!
+      raise NotDefinedError, "unable to find policy of nil" if object.nil?
+
+      policy or raise NotDefinedError, "unable to find policy `#{find}` for `#{object.inspect}`"
+    end
+
+    def policy
+      klass = find
+      klass = namespace.const_get(klass.demodulize) if klass.is_a?(String)
+      klass
+    rescue NameError
+      nil
+    end
+
     def scope
       policy::Scope if policy
     rescue NameError
       nil
     end
 
-    # @return [nil, Class] policy class with query methods
-    # @see https://github.com/elabs/pundit#policies
-    # @example
-    #   policy = finder.policy #=> UserPolicy
-    #   policy.show? #=> true
-    #   policy.update? #=> false
-    #
-    def policy
-      klass = find
-      klass = namespace.const_get(klass) if klass.is_a?(String)
-      klass
-    rescue NameError
-      nil
-    end
-
-    # @return [Scope{#resolve}] scope class which can resolve to a scope
-    # @raise [NotDefinedError] if scope could not be determined
-    #
     def scope!
       raise NotDefinedError, "unable to find policy scope of nil" if object.nil?
+
       scope or raise NotDefinedError, "unable to find scope `#{find}::Scope` for `#{object.inspect}`"
     end
 
-    # @return [Class] policy class with query methods
-    # @raise [NotDefinedError] if policy could not be determined
-    #
-    def policy!
-      raise NotDefinedError, "unable to find policy of nil" if object.nil?
-      policy or raise NotDefinedError, "unable to find policy `#{find}` for `#{object.inspect}`"
-    end
-
-    # @return [String] the name of the key this object would have in a params hash
-    #
     def param_key
       if object.respond_to?(:model_name)
         object.model_name.param_key.to_s
@@ -87,6 +58,7 @@ module Pundit
         else
           find_class_name(object)
         end
+
         "#{klass}#{SUFFIX}"
       end
     end
