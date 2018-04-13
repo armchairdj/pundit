@@ -36,8 +36,8 @@ module Pundit
   extend ActiveSupport::Concern
 
   class << self
-    def authorize(user, record, query)
-      policy = policy!(user, record, self.parent)
+    def authorize(user, record, query, namespace = Object)
+      policy = policy!(user, record, namespace)
 
       unless policy.public_send(query)
         raise NotAuthorizedError, query: query, record: record, policy: policy
@@ -47,8 +47,6 @@ module Pundit
     end
 
     def policy!(user, record, namespace = Object)
-      puts ">>klass.policy!", namespace
-
       PolicyFinder.new(record, namespace).policy!.new(user, record)
     end
 
@@ -92,45 +90,13 @@ protected
 
     @_pundit_policy_authorized = true
 
-    policy = policy(record)
-
-    unless policy.public_send(query)
-      raise NotAuthorizedError, query: query, record: record, policy: policy
-    end
-
-    record
-  end
-
-  def policy(record)
-    parent = self.class.parent
-
-    policies[parent]         ||= {}
-
-    puts "present?", policies[parent][record].present?
-
-
-    policies[parent][record] ||= Pundit.policy!(pundit_user, record, parent)
-
-    puts ">>#policy"
-    puts parent
-    puts policies[parent][record].class
-    puts "<<"
-
-    policies[parent][record]
-  end
-
-  def policies
-    @_pundit_policies ||= {}
+    Pundit.authorize(pundit_user, record, query, self.class.parent)
   end
 
   def policy_scope(scope)
     @_pundit_policy_scoped = true
 
-    pundit_policy_scope(scope)
-  end
-
-  def policy_scopes
-    @_pundit_policy_scopes ||= {}
+    Pundit.policy_scope!(pundit_user, scope, self.class.parent)
   end
 
   def permitted_attributes(record, action = params[:action])
@@ -173,14 +139,5 @@ protected
 
   def pundit_policy_scoped?
     !!@_pundit_policy_scoped
-  end
-
-private
-
-  def pundit_policy_scope(scope)
-    parent = self.class.parent
-
-    policy_scopes[parent]        ||= {}
-    policy_scopes[parent][scope] ||= Pundit.policy_scope!(pundit_user, scope, parent)
   end
 end
